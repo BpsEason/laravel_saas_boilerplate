@@ -1,7 +1,5 @@
 # Laravel Multi-Tenant SaaS Boilerplate for Order Management
 
-![Order Management SaaS Banner](https://via.placeholder.com/1200x630/2C3E50/FFFFFF?text=Modern%20SaaS%20Order%20Management%20Platform)
-
 <p align="center">
   <img src="https://img.shields.io/badge/Laravel-11.x-FF2D20.svg?style=flat-square" alt="Laravel 11.x">
   <img src="https://img.shields.io/badge/PHP-8.2-777BB4.svg?style=flat-square" alt="PHP 8.2">

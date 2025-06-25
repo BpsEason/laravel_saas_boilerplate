@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # Laravel Application Service (Nginx, PHP-FPM, Composer, NPM, Playwright Test Runner)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: laravel_saas_boilerplate_app
+    ports:
+      - "8000:8000" # Map host port 8000 to container port 8000 (HTTP)
+      - "8443:8443" # Map host port 8443 to container port 8443 (HTTPS)
+    volumes:
+      - .:/var/www/html # Mount current directory to /var/www/html inside container
+      - app_node_modules:/var/www/html/node_modules # Separate volume for node_modules
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: laravel_saas_boilerplate_db
+      DB_USERNAME: laravel_user
+      DB_PASSWORD: laravel_secret
+      REDIS_HOST: redis # Redis service name
+      APP_URL: http://localhost:8000 # Primary app URL
+      SANCTUM_STATEFUL_DOMAINS: localhost:3000,127.0.0.1:8000,tenant-a.localhost:8000,tenant-b.localhost:8000 # All domains for Sanctum
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started # Redis doesn't have a built-in healthcheck as robust as MySQL, simpler check
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/up"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  # MySQL Database Service
+  mysql:
+    image: mysql:8.0
+    container_name: laravel_saas_boilerplate_mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secret
+      MYSQL_DATABASE: laravel_saas_boilerplate_db
+      MYSQL_USER: laravel_user
+      MYSQL_PASSWORD: laravel_secret
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "laravel_user", "-plaravel_secret"] # Use Laravel user for healthcheck
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Redis Service
+  redis:
+    image: redis:7.0-alpine # Use alpine version for smaller image
+    container_name: laravel_saas_boilerplate_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data # Persistent volume for Redis data
+    networks:
+      - app_network
+    command: redis-server --appendonly yes # Enable AOF persistence for Redis
+
+# Define networks for inter-service communication
+networks:
+  app_network:
+    driver: bridge
+
+# Define volumes for data persistence
+volumes:
+  mysql_data:
+  app_node_modules:
+  redis_data:

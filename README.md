@@ -90,16 +90,7 @@
     docker-compose exec app php artisan migrate --seed
     ```
 
-4.  **安裝依賴並初始化資料庫**
-    ```bash
-    docker-compose exec app composer install
-    docker-compose exec app npm install
-    docker-compose exec app npm run build
-    docker-compose exec app php artisan migrate --seed
-    ```
-    *此步驟會安裝所有後端和前端依賴，並填充範例資料。*
-
-5.  **設定本地 Hosts 檔案** (可選，但強烈建議)
+4.  **設定本地 Hosts 檔案** (可選，但強烈建議)
     為了讓多租戶域名正常運作，請將以下內容添加到您的 `hosts` 檔案中：
     -   macOS/Linux: `/etc/hosts`
     -   Windows: `C:\Windows\System32\drivers\etc\hosts`
@@ -109,7 +100,7 @@
     127.0.0.1 tenant-b.localhost
     ```
 
-6.  **訪問應用程式！🎉**
+5.  **訪問應用程式！🎉**
     -   🌐 **主要入口**: [http://localhost:8000](http://localhost:8000)
     -   👤 **租戶 A**: [http://tenant-a.localhost:8000/login](http://tenant-a.localhost:8000/login)
     -   👤 **租戶 B**: [http://tenant-b.localhost:8000/login](http://tenant-b.localhost:8000/login)

@@ -24,37 +24,66 @@
 -   **容器化開發環境 (Docker)**: 提供一個包含 Nginx, PHP-FPM, MySQL, 和 Redis 的完整 Docker 環境，實現一鍵啟動。
 -   **現代化前端流程 (Vite)**: 使用 Vite 進行前端資源打包，提供極速的開發體驗。
 
-## 🚀 快速啟動 (Quick Start)
+## 🚀 快速啟動指南 (Quick Start)
 
-請確保您的系統已安裝 `Docker` 和 `Docker Compose`。
+此流程分為兩大步驟：首先創建一個基礎 Laravel 專案，然後將此倉庫的模板檔案應用進去。
 
-1.  **複製儲存庫**
+### 步驟一：創建基礎 Laravel 專案
+
+1.  在您的終端機中，使用 Composer 創建一個新的 Laravel 專案。我們將其命名為 `my-saas-app`。
     ```bash
-    git clone https://github.com/BpsEason/laravel_saas_boilerplate.git
-    cd laravel_saas_boilerplate
+    composer create-project laravel/laravel my-saas-app
+    ```
+2.  進入新創建的專案目錄。
+    ```bash
+    cd my-saas-app
     ```
 
-2.  **設定環境變數**
+### 步驟二：應用 SaaS 樣板模板
+
+1.  將此 GitHub 倉庫的內容複製到您的新專案中，**並覆蓋所有同名檔案**。
+    
+    *   **方法A (推薦): 使用 `git` 和 `rsync`**
+        ```bash
+        # 在 my-saas-app 目錄外，將本倉庫 clone 到一個臨時目錄
+        git clone https://github.com/BpsEason/laravel_saas_boilerplate.git boilerplate_files
+        
+        # 使用 rsync 將模板檔案（不含.git目錄）複製並覆蓋到您的專案中
+        rsync -av --progress boilerplate_files/ my-saas-app/ --exclude .git
+        
+        # 移除臨時目錄
+        rm -rf boilerplate_files
+        ```
+
+    *   **方法B (手動):**
+        1.  下載此倉庫的 ZIP 檔案並解壓縮。
+        2.  將解壓縮後的所有檔案和資料夾，手動複製到您的 `my-saas-app` 目錄中，並在提示時選擇「合併資料夾」和「替換檔案」。
+
+### 步驟三：啟動並運行您的新專案
+
+**現在，所有後續操作都在 `my-saas-app` 目錄中進行。**
+
+1.  **設定環境變數**
     ```bash
     cp .env.example .env
     ```
 
-3.  **啟動 Docker 服務**
+2.  **啟動 Docker 服務** (需要先安裝 Docker 和 Docker Compose)
     ```bash
     docker-compose up -d --build
     ```
-    *第一次啟動會需要一些時間來構建 Docker 鏡像。*
 
-4.  **安裝依賴並初始化資料庫**
+3.  **安裝依賴並初始化資料庫**
     ```bash
     docker-compose exec app composer install
     docker-compose exec app npm install
     docker-compose exec app npm run build
+    docker-compose exec app php artisan key:generate
     docker-compose exec app php artisan migrate --seed
     ```
     *此步驟會安裝所有後端和前端依賴，並填充範例資料。*
 
-5.  **設定本地 Hosts 檔案** (可選，但強烈建議)
+4.  **設定本地 Hosts 檔案** (可選，但強烈建議)
     為了讓多租戶域名正常運作，請將以下內容添加到您的 `hosts` 檔案中：
     -   macOS/Linux: `/etc/hosts`
     -   Windows: `C:\Windows\System32\drivers\etc\hosts`
@@ -64,7 +93,7 @@
     127.0.0.1 tenant-b.localhost
     ```
 
-6.  **訪問應用程式！🎉**
+5.  **訪問應用程式！🎉**
     -   🌐 **主要入口**: [http://localhost:8000](http://localhost:8000)
     -   👤 **租戶 A**: [http://tenant-a.localhost:8000/login](http://tenant-a.localhost:8000/login)
     -   👤 **租戶 B**: [http://tenant-b.localhost:8000/login](http://tenant-b.localhost:8000/login)

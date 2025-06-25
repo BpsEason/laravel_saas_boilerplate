@@ -6,9 +6,6 @@
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=flat-square" alt="Docker Ready">
   <img src="https://img.shields.io/badge/Playwright-E2E%20Testing-2EAD33.svg?style=flat-square" alt="Playwright E2E Testing">
   <img src="https://img.shields.io/badge/Scribe-API%20Docs-329696.svg?style=flat-square" alt="Scribe API Docs">
-  <a href="https://github.com/BpsEason/laravel_saas_boilerplate/actions/workflows/ci.yml">
-    <img src="https://github.com/BpsEason/laravel_saas_boilerplate/actions/workflows/ci.yml/badge.svg" alt="CI Status">
-  </a>
 </p>
 
 ## 🎯 專案目標：一個現代化的多租戶訂單管理平台

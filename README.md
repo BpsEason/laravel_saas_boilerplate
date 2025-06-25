@@ -1,10 +1,105 @@
+## 🎯 專案目標：一個現代化的多租戶訂單管理平台
+
+這是一個功能齊全、開箱即用的 **多租戶 SaaS 訂單管理平台樣板**。專案旨在為希望快速構建和部署自己訂單系統的企業或開發者，提供一個堅實、可擴展且安全的技術基礎。
+
+使用者（租戶）可以註冊自己的獨立帳戶，在完全隔離的環境中管理自己的**產品**和**客戶訂單**。本樣板解決了從零開發 SaaS 平台中最複雜的環節，包括多租戶架構、用戶認證、API 設計、自動化測試和容器化部署。
+
+## ✨ 核心功能 (Core Features)
+
+-   **多租戶架構 (Multi-Tenancy)**: 每個租戶（公司/用戶）擁有獨立的產品和訂單資料，透過 `spatie/laravel-multitenancy` 實現域名級別的無縫資料隔離。
+-   **訂單與產品管理**: 提供完整的產品（Products）和訂單（Orders）的 CRUD（增刪改查）功能，作為平台的核心業務。
+-   **API 驅動後端 (API-Driven)**: 使用 `Laravel Sanctum` 進行認證，所有業務邏輯都通過一套 RESTful API 實現，便於未來與其他系統或 App 整合。
+-   **自動化 API 文件 (Scribe)**: 自動從程式碼註解生成專業、可互動的 API 文件，加速開發與協作。
+-   **端到端自動化測試 (Playwright)**: 包含完整的 E2E 測試套件，覆蓋註冊、登入、產品管理、訂單創建和租戶資料隔離等關鍵流程。
+-   **容器化開發環境 (Docker)**: 提供一個包含 Nginx, PHP-FPM, MySQL, 和 Redis 的完整 Docker 環境，實現一鍵啟動和跨平台一致性。
+-   **現代化前端流程 (Vite)**: 使用 Vite 進行前端資源打包，提供極速的開發體驗。
+-   **國際化 (i18n)**: 預設配置繁體中文 (`zh_TW`)，展示了多語言支援的基礎。
+
+## 🛠️ 技術棧 (Tech Stack)
+
+| 類別        | 技術                                                                                             |
+| :---------- | :----------------------------------------------------------------------------------------------- |
+| **後端**    | PHP 8.2, Laravel 11, Spatie Laravel Multitenancy, Laravel Sanctum, Scribe                          |
+| **前端**    | Vite, Blade, Tailwind CSS (基礎), Vanilla JavaScript                                               |
+| **資料庫**  | MySQL 8.0, Redis 7.0                                                                               |
+| **網頁伺服器** | Nginx                                                                                            |
+| **測試**    | Playwright (E2E), PHPUnit                                                                        |
+| **部署**    | Docker, Docker Compose                                                                           |
+
+## 🏗️ 系統架構圖 (System Architecture)
+
+本專案採用容器化的微服務架構，將不同的關注點分離到獨立的服務中，並透過 Docker 網路進行通信。
+
+```mermaid
+graph TD
+    subgraph "用戶端 (User Client)"
+        U[👨‍💻 User's Browser]
+    end
+
+    subgraph "網路/基礎設施 (Network/Infrastructure)"
+        LB(🌐 Internet / Nginx Proxy)
+    end
+
+    subgraph "Docker 環境 (Docker Environment)"
+        direction LR
+        subgraph "app (Laravel Service)"
+            direction TB
+            Nginx[🌐 Nginx Web Server] --> FPM[🐘 PHP-FPM]
+            FPM --> LV[🚀 Laravel App]
+        end
+
+        subgraph "db (Database Service)"
+            DB[(🗄️ MySQL)]
+        end
+
+        subgraph "cache (Cache Service)"
+            Redis[(⚡ Redis)]
+        end
+    end
+
+    subgraph "第三方服務 (Third-party Services)"
+        Mail(📧 Mail Service)
+        S3(📦 S3 Storage)
+    end
+
+    U -- "HTTP/S Request (e.g., tenant-a.localhost)" --> LB
+    LB -- "Port 8000/8443" --> Nginx
+
+    LV -- "DB Connection" --> DB
+    LV -- "Cache/Queue" --> Redis
+    LV -- "SMTP" --> Mail
+    LV -- "File Storage" --> S3
+```
+
 ## 🌟 系統亮點與架構解析
 
-這個樣板不僅僅是技術的堆疊，更是一套經過深思熟慮的架構設計。以下是幾個關鍵的設計亮點，展示了本專案如何解決 SaaS 應用中的核心挑戰。
+這個樣板不僅僅是技術的堆疊，更是一套經過深思熟慮的架構設計。以下是幾個關鍵的設計亮點，展示了本專案如何解決 SaaS 訂單管理平台中的核心挑戰。
 
 ### 1. 無縫的多租戶資料隔離
 
 透過 `spatie/laravel-multitenancy`，我們實現了無需在業務程式碼中編寫 `where('tenant_id', ...)` 的無縫資料隔離。
+
+**關鍵程式碼 - `app/Models/Product.php`:**
+
+```php
+<?php
+namespace App\Models;
+
+use Spatie\Multitenancy\Models\Concerns\ForCurrentTenant;
+
+class Product extends Model
+{
+    // 引入 ForCurrentTenant Trait
+    use HasFactory, ForCurrentTenant;
+    // ...
+}
+```
+
+-   **註解**：僅僅通過引入 `ForCurrentTenant` 這個 Trait，任何對 `Product` 模型（以及 `Order` 和 `User`）的查詢都會自動添加 `WHERE tenant_id = ?` 條件。`?` 的值由框架根據當前訪問的域名（例如 `my-company.localhost`）自動解析。這從根本上杜絕了租戶 A 看到租戶 B 的產品和訂單的風險。
+
+### 2. 多租戶請求生命週期
+
+下圖展示了一個來自租戶的請求在 Laravel 應用中的處理流程：
 
 ```mermaid
 sequenceDiagram
@@ -29,168 +124,107 @@ sequenceDiagram
     L-->>B: 11. 響應返回給瀏覽器
 ```
 
--   **流程說明**：
-    1.  請求到達 Laravel 的入口 `Kernel.php`。
-    2.  `Spatie\Multitenancy` 套件的中介軟體被觸發。
-    3.  `DomainTenantFinder` 根據域名 `tenant-a.localhost` 找到對應的租戶（ID=1）。
-    4.  框架將這個租戶設置為「當前活動租戶」。
-    5.  請求被分發到 `ProductController`。
-    6.  控制器調用 `Product::all()`。
-    7.  由於 `Product` 模型使用了 `ForCurrentTenant` Trait，Eloquent 會自動在 SQL 查詢中加上 `WHERE tenant_id = 1` 的作用域。
-    8.  最終，控制器只會獲取並返回屬於租戶 A 的產品，從而實現了安全的資料隔離。
+### 3. API 驅動的認證與業務邏輯
 
-**關鍵程式碼 - `app/Models/User.php`:**
-
-```php
-<?php
-
-namespace App\Models;
-
-// ... 其他 use 語句 ...
-use Spatie\Multitenancy\Models\Concerns\ForCurrentTenant; // 引入 Trait
-
-class User extends Authenticatable
-{
-    // 使用 HasApiTokens、HasFactory、Notifiable 的同時，
-    // 也使用了 ForCurrentTenant。
-    use HasApiTokens, HasFactory, Notifiable, ForCurrentTenant;
-
-    // ... 模型其他部分 ...
-}
-```
-
--   **註解**：僅僅通過引入 `ForCurrentTenant` 這個 Trait，任何對 `User` 模型（以及其他使用了此 Trait 的模型，如 `Product`, `Order`）的查詢都會自動添加 `WHERE tenant_id = ?` 的條件。`?` 的值由框架根據當前訪問的域名（例如 `tenant-a.localhost`）自動解析。這從根本上杜絕了資料洩露的風險，並極大地簡化了開發。
-
-### 2. API 驅動的認證與業務邏輯
-
-前端介面（Blade）與後端的核心邏輯是解耦的。所有操作，包括用戶註冊、登入、產品管理，都通過一套 RESTful API 完成。
+前端介面與後端的核心邏輯是解耦的。所有操作，包括用戶註冊、登入、產品和訂單管理，都通過一套 RESTful API 完成。
 
 **關鍵程式碼 - `routes/api.php`:**
 
 ```php
 <?php
-// ...
 Route::prefix('v1')->group(function () {
-    // 公開的認證路由
-    Route::post('register', [App\Http\Controllers\Api\V1\Auth\AuthController::class, 'register']);
-    Route::post('login', [App\Http\Controllers\Api\V1\Auth\AuthController::class, 'login']);
+    Route::post('register', [AuthController::class, 'register']);
+    Route::post('login', [AuthController::class, 'login']);
 
-    // 需要 Sanctum 認證和租戶上下文的路由群組
     Route::middleware('auth:sanctum')->group(function () {
-        Route.post('logout', ...);
-        Route.get('user', ...);
-
-        // 產品和訂單的 CRUD 操作
-        Route::apiResource('products', App\Http\Controllers\Api\V1\ProductController::class);
-        Route::apiResource('orders', App\Http\Controllers\Api\V1\OrderController::class);
+        Route::apiResource('products', ProductController::class);
+        Route::apiResource('orders', OrderController::class);
     });
 });
 ```
+-   **註解**：這種 API-First 的設計使得未來擴展到手機 App 或與其他第三方 ERP、CRM 系統整合變得非常容易，這對於一個訂單管理平台來說是至關重要的。
 
--   **註解**：路由設計清晰地分離了公開端點和受保護端點。`apiResource` 快捷地定義了標準的 CRUD 路由，而 `auth:sanctum` 中介軟體確保了只有經過認證的用戶才能訪問核心資源。這種 API-First 的設計使得未來擴展到手機 App 或其他客戶端變得非常容易。
+## 🚀 快速啟動 (Quick Start)
 
-### 3. Scribe 自動化 API 文件
+請確保您的系統已安裝 `Docker` 和 `Docker Compose`。
 
-我們不需要手動編寫和維護 API 文件。Scribe 會掃描我們的控制器註解，自動生成專業、可互動的文檔。
+1.  **複製儲存庫**
+    ```bash
+    git clone https://github.com/BpsEason/laravel_saas_boilerplate.git
+    cd laravel_saas_boilerplate
+    ```
 
-**關鍵程式碼 - `app/Http/Controllers/Api/V1/ProductController.php`:**
+2.  **執行專案生成腳本**
+    此腳本將在 `laravel_saas_boilerplate` 目錄中生成完整的專案檔案。
+    ```bash
+    ./create_project.sh && ./create_project_view.sh
+    ```
 
-```php
-<?php
+3.  **進入專案目錄並啟動服務**
+    ```bash
+    cd laravel_saas_boilerplate
+    cp .env.example .env
+    docker-compose up -d --build
+    ```
 
-// ...
-/**
- * @group Product Management
- *
- * 管理租戶下的產品資訊。
- * 這些 API 需要認證並在租戶上下文中運行。
- */
-class ProductController extends Controller
-{
-    /**
-     * 獲取所有產品
-     *
-     * 獲取當前認證用戶所擁有的所有產品。
-     *
-     * @authenticated
-     * @response 200 { ... } // Scribe 會解析這裡的 JSON 作為範例響應
-     */
-    public function index()
-    {
-        // ... 邏輯 ...
-    }
+4.  **安裝依賴並初始化資料庫**
+    ```bash
+    docker-compose exec app composer install
+    docker-compose exec app npm install
+    docker-compose exec app npm run build
+    docker-compose exec app php artisan migrate --seed
+    ```
 
-    /**
-     * 創建新產品
-     *
-     * @authenticated
-     * @bodyParam name string required 產品名稱. Example: New Gadget
-     * @bodyParam price numeric required 產品價格. Example: 199.99
-     * @response 201 { ... }
-     */
-    public function store(Request $request)
-    {
-        // ... 邏輯 ...
-    }
-}
+5.  **設定本地 Hosts 檔案** (可選，但強烈建議)
+    為了讓多租戶域名正常運作，請將以下內容添加到您的 `hosts` 檔案中：
+    -   macOS/Linux: `/etc/hosts`
+    -   Windows: `C:\Windows\System32\drivers\etc\hosts`
+
+    ```
+    127.0.0.1 tenant-a.localhost
+    127.0.0.1 tenant-b.localhost
+    ```
+
+6.  **訪問應用程式！🎉**
+    -   🌐 **主要入口**: [http://localhost:8000](http://localhost:8000)
+    -   👤 **租戶 A**: [http://tenant-a.localhost:8000/login](http://tenant-a.localhost:8000/login)
+    -   👤 **租戶 B**: [http://tenant-b.localhost:8000/login](http://tenant-b.localhost:8000/login)
+    -   📄 **API 文件 (Scribe)**: [http://localhost:8000/api/docs](http://localhost:8000/api/docs)
+
+### 範例使用者帳號
+
+資料庫填充（seeder）已為您創建了兩個租戶的範例使用者：
+
+-   **租戶 A (Tenant A)**:
+    -   Email: `tenant.a@example.com`
+    -   Password: `password`
+-   **租戶 B (Tenant B)**:
+    -   Email: `tenant.b@example.com`
+    -   Password: `password`
+
+## ✅ 運行測試 (Running Tests)
+
+本專案使用 Playwright 進行端到端測試，以確保應用程式的穩定性。
+
+在 `laravel_saas_boilerplate` 目錄下執行以下命令：
+```bash
+# 運行所有 E2E 測試
+docker-compose exec app npm run test:e2e
 ```
 
--   **註解**：開發者只需要按照 Scribe 的規範編寫 PHP DocBlock 註解，例如 `@group`, `@authenticated`, `@bodyParam` 等，然後運行 `php artisan scribe:generate` 命令，一份完整、美觀的 API 文件就生成了。這確保了文件與程式碼的「單一事實來源」，極大提升了團隊協作效率。
-
-### 4. Playwright 端到端測試與頁面物件模型 (POM)
-
-為了保證應用程式的品質，我們採用了 Playwright 進行 E2E 測試，並使用頁面物件模型（POM）來組織測試程式碼，使其更具可讀性和可維護性。
-
-**關鍵程式碼 - `tests/e2e/specs/auth.spec.js`:**
-
-```javascript
-// ...
-import LoginPage from '../pages/LoginPage';
-import DashboardPage from '../pages/DashboardPage';
-
-test.describe('Authentication', () => {
-    let loginPage;
-    let dashboardPage;
-
-    test.beforeEach(async ({ page }) => {
-        // 在每個測試前初始化頁面物件
-        loginPage = new LoginPage(page);
-        dashboardPage = new DashboardPage(page);
-        await page.goto('/');
-    });
-
-    test('should allow an existing user to log in', async ({ page }) => {
-        // 使用頁面物件封裝的方法，而不是直接操作選擇器
-        await loginPage.navigate();
-        await loginPage.login('tenant.a@example.com', 'password');
-
-        // 斷言
-        await expect(page).toHaveURL(/dashboard/);
-        await expect(dashboardPage.welcomeHeading).toBeVisible();
-    });
-});
-```
-
--   **註解**：測試案例本身（`auth.spec.js`）不包含任何 CSS 選擇器或複雜的操作邏輯。它只調用 `LoginPage` 物件的方法，如 `.login()`。所有的選擇器（如 `input[type="email"]`）和操作細節都被封裝在 `LoginPage.js` 檔案中。當 UI 發生變化時，我們只需要修改對應的頁面物件檔案，而不需要修改大量的測試案例。這就是 POM 的威力。
-
-2. 常見問題 (FAQ)
-
-這部分可以放在 README.md 的最後，授權聲明之前。它能主動回答潛在用戶或面試官可能有的疑問，體現了您的思考深度和對用戶的友好。
-
-Generated markdown
 ## ❓ 常見問題 (FAQ)
 
-**Q1: 為什麼選擇 Spatie 的多租戶套件，而不是自己實現？**
+**Q1: 這個平台適合什麼樣的使用者？**
+
+> **A:** 任何需要管理自有產品目錄和客戶訂單的中小型企業、電商賣家或獨立開發者。租戶可以快速擁有一個獨立的後台系統，而無需承擔昂貴的客製化開發成本。
+
+**Q2: 為什麼選擇 Spatie 的多租戶套件，而不是自己實現？**
 
 > **A:** Spatie 的 `laravel-multitenancy` 是一個經過社群大量驗證、功能穩定且設計優良的套件。它抽象了底層複雜的任務切換邏輯（如資料庫連接、快取、隊列等），讓開發者能專注於業務。自己實現不僅耗時，而且很難考慮到所有邊界情況。選擇成熟的開源解決方案是遵循「不重複造輪子」的最佳工程實踐。
 
-**Q2: 這個專案的前端是 SPA (單頁應用) 嗎？**
+**Q3: 我可以在此基礎上擴展功能嗎？例如加入支付或發貨功能？**
 
-> **A:** 不是。本專案採用的是一種混合模式。頁面骨架由後端的 Laravel Blade 模板渲染，而頁面內的動態內容（如產品列表）則通過前端 JavaScript (`app.js`) 異步請求 API 來載入。這種架構兼顧了傳統伺服器渲染的簡單性、SEO 友好性，以及現代前端的互動體驗，非常適合快速啟動內容管理類型的 SaaS 產品。
-
-**Q3: 為什麼 Playwright 測試中的登入等操作是通過 UI 介面，而不是直接調用 API？**
-
-> **A:** 這是端到端 (E2E) 測試的核心思想。E2E 測試的目標是 **模擬真實用戶的行為**，驗證整個應用程式（從前端到後端再到資料庫）是否能協同正常工作。通過 UI 進行登入，可以確保登入表單、按鈕、前端 JS 和後端 API 之間的整個鏈路都是通暢的。如果直接調用 API，我們就無法測試到前端介面的部分。對於需要預置資料的場景（如創建一個產品用於測試訂單功能），我們會考慮使用 API 來加速測試設置。
+> **A:** 當然可以！這正是這個樣板的核心價值所在。它提供了一個穩固的骨架，您可以非常容易地在此基礎上進行擴展。例如，您可以創建一個 `PaymentController`，整合 Stripe 或 PayPal 的 API；或者增加一個 `Shipment` 模型來追蹤物流狀態。API-First 的架構使得這些整合變得更加簡單。
 
 **Q4: 我可以在生產環境中直接使用這個樣板嗎？**
 
@@ -200,24 +234,21 @@ Generated markdown
 > -   **性能優化**: 運行 `php artisan config:cache` 和 `php artisan route:cache` 等 Laravel 優化命令。
 > -   **Docker 配置**: 生產環境的 Docker 配置可能需要針對日誌收集、監控和擴展性進行調整。
 
-**Q5: 生成腳本 (`create_project.sh`) 的用意是什麼？**
 
-> **A:** 這個腳本的核心目標是 **保證專案結構的可重現性 (Reproducibility)**。它將一個空白 Laravel 專案轉化為一個功能齊全的 SaaS 樣板所需的所有檔案和目錄結構都「程式碼化」了。這有幾個好處：
-> 1.  **清晰的演進歷史**: 任何人都可以通過閱讀腳本了解專案是如何從零構建起來的。
-> 2.  **避免手動錯誤**: 減少了因手動複製貼上或配置檔案而導致的錯誤。
-> 3.  **快速迭代**: 如果需要對基礎架構進行調整，可以直接修改腳本並重新生成，確保所有開發者都能獲得一致的基礎。
-IGNORE_WHEN_COPYING_START
-content_copy
-download
-Use code with caution.
-Markdown
-IGNORE_WHEN_COPYING_END
-總結建議
+## 📜 授權 (License)
 
-更新 README.md: 將我提供的這兩大塊內容（「系統亮點」和「FAQ」）添加到您現有的 README.md 文件中。
+此專案採用 [MIT License](LICENSE.md) 授權。
 
-確認程式碼一致性: 確保我引用的「關鍵程式碼」片段與您 create_project.sh 腳本中生成的程式碼是完全一致的。
+主要修改點
 
-加上 CI/CD: 就像之前提到的，配置 GitHub Actions 是讓這個專案更上一層樓的關鍵一步。
+標題和簡介：直接點明這是一個「訂單管理平台」的樣板，讓定位更清晰。
 
-完成了這些補充後，您的 GitHub 專案將不僅僅是一個程式碼倉庫，而是一個內容豐富、解釋清晰、能夠充分展示您技術深度和工程思維的專業作品集。
+核心功能描述：在描述中加入了「訂單與產品管理」這一核心業務功能。
+
+架構亮點：在解釋 API 驅動的優點時，特別提到了這對於「訂單管理平台」與第三方 ERP、CRM 系統整合的重要性。
+
+FAQ：新增了兩個與「訂單管理平台」定位高度相關的問題（Q1 和 Q3），更能體現您對該領域業務的思考。
+
+圖片 Banner：我修改了 banner 的文字，使其更貼合「訂單管理平台」的主題。
+
+這樣修改後，整個專案的故事線更加連貫和專業，不僅展示了您的技術能力，也體現了您將技術應用於解決特定業務問題的產品思維。

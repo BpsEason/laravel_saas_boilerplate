@@ -1,0 +1,114 @@
+# .github/workflows/ci.yml
+# GitHub Actions CI/CD Pipeline 配置檔
+
+# 工作流程的名稱，將會顯示在 GitHub Actions 頁面上
+name: CI Pipeline for SaaS Boilerplate
+
+# 定義觸發這個工作流程的事件
+on:
+  push:
+    branches: [ main ] # 當程式碼被推送到 'main' 分支時觸發。這通常用於程式碼合併後的最終驗證。
+  pull_request:
+    branches: [ main ] # 當有 Pull Request 合併到 'main' 分支時觸發。這是確保 PR 品質的關鍵點。
+
+# 定義要執行的任務 (Jobs)。一個工作流程可以包含多個任務。
+jobs:
+  build-and-test: # 任務名稱：建置與測試
+    runs-on: ubuntu-latest # 指定這個任務將在 GitHub 提供的最新版 Ubuntu 虛擬機上運行。
+
+    # 定義任務中的步驟 (Steps)，每個步驟會依序執行。
+    steps:
+      - name: 🚀 Checkout Code # 步驟一：檢出程式碼 - 確保我們拿到的是最新的程式碼
+        uses: actions/checkout@v3 # 使用 GitHub 官方提供的 checkout Action
+
+      - name: 🐳 Set up Docker Compose Environment # 步驟二：環境準備 - 啟動 Docker 服務
+        run: |
+          # 由於這個 GitHub 倉庫是一個「樣板」，我們在 CI 環境中需要模擬用戶實際使用樣板的流程。
+          # 因此，將目前的樣板文件複製到一個子目錄 `my-saas-app` 來模擬實際專案。
+          mkdir -p my-saas-app
+          cp -r . my-saas-app/ # 複製整個倉庫內容到模擬的專案目錄
+          cd my-saas-app      # 進入模擬的專案目錄
+
+          # 將 .env.example 複製為 .env，這是 Laravel 應用程式運行所必需的環境變數設定檔。
+          # 確保您的 .env.example 包含了所有 CI 環境所需的變數。
+          cp .env.example .env
+
+          # 使用 Docker Compose 啟動所有定義在 docker-compose.yml 中的服務 (如 app, mysql, redis)。
+          # `--build` 會在啟動前重建 Docker 映像，確保使用最新配置。
+          # `--wait` 會等待所有服務都啟動完畢，並通過各自的健康檢查 (healthcheck)，這是確保服務真正「活」了的關鍵。
+          docker-compose up -d --build --wait 
+        # 資深思考：這一步是整個 CI 環境的基石。它保證了 CI 運行環境與您的本地開發環境以及未來的生產環境高度一致，避免「環境差異」造成的測試失敗。
+
+      - name: 📦 Install Dependencies & Initialize Database # 步驟三：安裝依賴與初始化資料庫
+        working-directory: ./my-saas-app # 指定在模擬的專案目錄中執行以下命令
+        run: |
+          # 在 `app` 服務容器內執行 Composer 安裝 PHP 依賴。
+          docker-compose exec app composer install
+          # 在 `app` 服務容器內執行 NPM 安裝 Node.js 依賴 (用於前端資產編譯和 Playwright)。
+          docker-compose exec app npm install
+          # 編譯前端資產 (如 JavaScript, CSS)，例如使用 Vite。
+          docker-compose exec app npm run build
+          # 生成 Laravel 應用程式的 APP_KEY。這是 Laravel 安全運行和加密的基礎。
+          docker-compose exec app php artisan key:generate
+          # 運行資料庫遷移並填充範例數據。
+          # `php artisan migrate --seed` 會根據您的 migrations 檔案建立所有資料庫表格，並運行 seeders 填充測試數據。
+          # 資深思考：確保每次測試前，資料庫都處於一個乾淨且預期的狀態。
+
+      - name: 🌐 Add Local Hosts Entries for Multi-Tenancy Testing # 步驟四：為多租戶測試添加本地 hosts 條目 (關鍵！資深必備)
+        # 在 GitHub Actions 的 Runner (虛擬機) 上，像 `tenant-a.localhost` 這些虛擬域名預設是無法解析的。
+        # 這個步驟會將這些域名添加到 Runner 的 `/etc/hosts` 文件中，並指向 `127.0.0.1` (即 Docker 服務的宿主機)。
+        # 這樣，當 Playwright 嘗試訪問這些域名時，就能正確解析並連接到 Docker 容器裡的 Laravel 應用程式。
+        run: |
+          echo "127.0.0.1 tenant-a.localhost" | sudo tee -a /etc/hosts
+          echo "127.0.0.1 tenant-b.localhost" | sudo tee -a /etc/hosts
+        # 資深思考：這一步完美解決了多租戶應用在 CI/CD 環境中，因域名解析問題導致測試失敗的常見痛點。確保測試環境與實際運作環境的域名解析行為一致。
+
+      - name: 🧪 Run Playwright E2E Tests # 步驟五：執行端到端測試
+        working-directory: ./my-saas-app # 在模擬的專案目錄中執行
+        run: |
+          # 安裝 Playwright 瀏覽器核心 (如 Chromium, Firefox, WebKit)。在 CI 環境中首次運行需要下載。
+          docker-compose exec app npx playwright install --with-deps
+          # 執行所有端到端測試。這將會模擬真實用戶操作，從前端到後端完整驗證應用程式。
+          docker-compose exec app npm run test:e2e
+          # (可選) 如果您需要生成測試報告並上傳為 Artifacts，可以啟用以下行。
+          # 這有助於在 GitHub Actions 介面中查看詳細的測試失敗截圖或影片。
+          # docker-compose exec app npx playwright show-report --output playwright-report.zip
+          # - uses: actions/upload-artifact@v3
+          #   with:
+          #     name: playwright-report
+          #     path: my-saas-app/playwright-report.zip
+
+      # TODO: (可選) 如果您有寫 PHPUnit 的單元測試或功能測試，可以在這裡添加步驟
+      # 建議將 PHPUnit 測試放在 E2E 測試之前，因為它們通常執行速度更快，能更早發現程式碼層面的問題。
+      # - name: Run PHPUnit Tests
+      #   working-directory: ./my-saas-app
+      #   run: docker-compose exec app php artisan test
+
+      # TODO: (可選) 如果您有集成 Allure Report 等工具來產生漂亮的測試報告，可以在這裡添加步驟
+      # - name: Generate Allure Report
+      #   working-directory: ./my-saas-app
+      #   run: docker-compose exec app npm run allure:generate # 確保您的 package.json 中有定義 'allure:generate' 腳本
+
+      # TODO: (持續部署 - CD 階段) 如果要將應用程式自動部署到生產環境，可以在這裡添加步驟
+      # 通常會設定只有在 'main' 分支被 Push 時才觸發部署。
+      # 這會涉及到 SSH 連接遠端伺服器、拉取最新程式碼、執行資料庫遷移、清除快取和重啟服務等操作。
+      # - name: 🚀 Deploy to Production
+      #   if: github.ref == 'refs/heads/main' # 只在 main 分支推送到生產環境
+      #   env: # 在這裡安全地引用您在 GitHub Secrets 中設定的敏感資訊
+      #     SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      #     PRODUCTION_SERVER_IP: ${{ secrets.PRODUCTION_SERVER_IP }}
+      #   run: |
+      #     # 這裡的部署腳本會根據您的實際部署環境而有所不同
+      #     echo "Starting deployment to production environment..."
+      #     # 範例：使用 SSH 連接並執行遠端命令
+      #     ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no deploy_user@${{ env.PRODUCTION_SERVER_IP }} << 'EOF'
+      #       cd /path/to/your/app
+      #       git pull origin main
+      #       composer install --no-dev --optimize-autoloader
+      #       php artisan migrate --force
+      #       php artisan config:cache
+      #       php artisan route:cache
+      #       php artisan view:cache
+      #       sudo systemctl reload php8.2-fpm # 依據您的伺服器配置調整
+      #     EOF
+      #     echo "Deployment completed!"

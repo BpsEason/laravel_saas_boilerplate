@@ -179,16 +179,13 @@ test.describe('Authentication', () => {
     cd laravel_saas_boilerplate
     ```
 
-2.  **執行專案生成腳本**
-    此腳本將在 `laravel_saas_boilerplate` 目錄中生成完整的專案檔案。
+2.  **設定環境變數**
     ```bash
-    ./create_project.sh && ./create_project_view.sh
+    cp .env.example .env
     ```
 
-3.  **進入專案目錄並啟動服務**
+3.  **啟動 Docker 服務**
     ```bash
-    cd laravel_saas_boilerplate
-    cp .env.example .env
     docker-compose up -d --build
     ```
     *第一次啟動會需要一些時間來構建 Docker 鏡像。*
@@ -200,6 +197,7 @@ test.describe('Authentication', () => {
     docker-compose exec app npm run build
     docker-compose exec app php artisan migrate --seed
     ```
+    *此步驟會安裝所有後端和前端依賴，並填充範例資料。*
 
 5.  **設定本地 Hosts 檔案** (可選，但強烈建議)
     為了讓多租戶域名正常運作，請將以下內容添加到您的 `hosts` 檔案中：
@@ -232,12 +230,12 @@ test.describe('Authentication', () => {
 
 本專案使用 Playwright 進行端到端測試，以確保應用程式的穩定性。
 
-在 `laravel_saas_boilerplate` 目錄下執行以下命令：
+執行以下命令來運行所有 E2E 測試：
 ```bash
-# 運行所有 E2E 測試
 docker-compose exec app npm run test:e2e
-
-# 使用 UI 模式進行調試
+```
+若要使用 UI 模式進行調試：
+```bash
 docker-compose exec app npm run test:e2e:ui
 ```
 

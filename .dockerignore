@@ -1,0 +1,14 @@
+.git
+.idea/
+.vscode/
+node_modules/ # Exclude from image as it's handled by app_node_modules volume
+vendor/ # Exclude from image as composer install is run inside Dockerfile
+.env
+.DS_Store
+*.log
+storage/*.log
+public/hot
+.docker/ # Exclude the .docker folder itself
+Dockerfile # Exclude Dockerfile itself
+docker-compose.yml # Exclude docker-compose.yml itself
+README.md # Exclude README.md

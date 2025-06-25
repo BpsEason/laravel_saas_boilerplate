@@ -6,6 +6,39 @@
 
 透過 `spatie/laravel-multitenancy`，我們實現了無需在業務程式碼中編寫 `where('tenant_id', ...)` 的無縫資料隔離。
 
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant L as Laravel (Kernel.php)
+    participant M as Middleware (Spatie)
+    participant R as Router
+    participant C as Controller
+    participant D as DB (with Tenant Scope)
+
+    B->>L: GET http://tenant-a.localhost/products
+    L->>M: 1. 處理請求，進入中介軟體
+    M->>M: 2. **DomainTenantFinder** 識別域名<br/>並從 `tenants` 表中找到 Tenant A
+    M->>M: 3. **makeCurrent()**: 將 Tenant A 設為當前租戶上下文
+    M->>L: 4. 繼續處理請求
+    L->>R: 5. 路由分發到 ProductController@index
+    R->>C: 6. 執行 `index()` 方法
+    C->>D: 7. 調用 `Product::all()`
+    D->>D: 8. **ForCurrentTenant Trait** 自動<br/>添加 `WHERE tenant_id = 1` 條件
+    D-->>C: 9. 返回僅屬於 Tenant A 的產品資料
+    C-->>L: 10. 返回 JSON 響應
+    L-->>B: 11. 響應返回給瀏覽器
+```
+
+-   **流程說明**：
+    1.  請求到達 Laravel 的入口 `Kernel.php`。
+    2.  `Spatie\Multitenancy` 套件的中介軟體被觸發。
+    3.  `DomainTenantFinder` 根據域名 `tenant-a.localhost` 找到對應的租戶（ID=1）。
+    4.  框架將這個租戶設置為「當前活動租戶」。
+    5.  請求被分發到 `ProductController`。
+    6.  控制器調用 `Product::all()`。
+    7.  由於 `Product` 模型使用了 `ForCurrentTenant` Trait，Eloquent 會自動在 SQL 查詢中加上 `WHERE tenant_id = 1` 的作用域。
+    8.  最終，控制器只會獲取並返回屬於租戶 A 的產品，從而實現了安全的資料隔離。
+
 **關鍵程式碼 - `app/Models/User.php`:**
 
 ```php

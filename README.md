@@ -24,73 +24,37 @@
 -   **容器化開發環境 (Docker)**: 提供一個包含 Nginx, PHP-FPM, MySQL, 和 Redis 的完整 Docker 環境，實現一鍵啟動。
 -   **現代化前端流程 (Vite)**: 使用 Vite 進行前端資源打包，提供極速的開發體驗。
 
-## 🎯 關於此倉庫
+## 🚀 快速啟動 (Quick Start)
 
-**重要提示：** 這個倉庫本身**不是**一個可直接運行的 Laravel 專案。它是一個 **SaaS 樣板的「核心程式碼模板」**。
+請確保您的系統已安裝 `Docker` 和 `Docker Compose`。
 
-您需要將這些檔案應用到一個新創建的 Laravel 專案之上，才能構建出一個功能齊全的多租戶訂單管理平台。這種方式的目的是為了清晰地展示所有為實現此 SaaS 樣板而**新增或修改**的核心程式碼。
-
----
-
-## 🚀 快速啟動指南 (Quick Start)
-
-此流程分為兩大步驟：首先創建一個基礎 Laravel 專案，然後將此倉庫的模板檔案應用進去。
-
-### 步驟一：創建基礎 Laravel 專案
-
-1.  在您的終端機中，使用 Composer 創建一個新的 Laravel 專案。我們將其命名為 `my-saas-app`。
+1.  **複製儲存庫**
     ```bash
-    composer create-project laravel/laravel my-saas-app
-    ```
-2.  進入新創建的專案目錄。
-    ```bash
-    cd my-saas-app
+    git clone https://github.com/BpsEason/laravel_saas_boilerplate.git
+    cd laravel_saas_boilerplate
     ```
 
-### 步驟二：應用 SaaS 樣板模板
-
-1.  將此 GitHub 倉庫的內容複製到您的新專案中，**並覆蓋所有同名檔案**。
-    
-    *   **方法A (推薦): 使用 `git` 和 `rsync`**
-        ```bash
-        # 在 my-saas-app 目錄外，將本倉庫 clone 到一個臨時目錄
-        git clone https://github.com/BpsEason/laravel_saas_boilerplate.git boilerplate_files
-        
-        # 使用 rsync 將模板檔案（不含.git目錄）複製並覆蓋到您的專案中
-        rsync -av --progress boilerplate_files/ my-saas-app/ --exclude .git
-        
-        # 移除臨時目錄
-        rm -rf boilerplate_files
-        ```
-
-    *   **方法B (手動):**
-        1.  下載此倉庫的 ZIP 檔案並解壓縮。
-        2.  將解壓縮後的所有檔案和資料夾，手動複製到您的 `my-saas-app` 目錄中，並在提示時選擇「合併資料夾」和「替換檔案」。
-
-### 步驟三：啟動並運行您的新專案
-
-**現在，所有後續操作都在 `my-saas-app` 目錄中進行。**
-
-1.  **設定環境變數**
+2.  **設定環境變數**
     ```bash
     cp .env.example .env
     ```
 
-2.  **啟動 Docker 服務** (需要先安裝 Docker 和 Docker Compose)
+3.  **啟動 Docker 服務**
     ```bash
     docker-compose up -d --build
     ```
+    *第一次啟動會需要一些時間來構建 Docker 鏡像。*
 
-3.  **安裝依賴並初始化資料庫**
+4.  **安裝依賴並初始化資料庫**
     ```bash
     docker-compose exec app composer install
     docker-compose exec app npm install
     docker-compose exec app npm run build
-    docker-compose exec app php artisan key:generate
     docker-compose exec app php artisan migrate --seed
     ```
+    *此步驟會安裝所有後端和前端依賴，並填充範例資料。*
 
-4.  **設定本地 Hosts 檔案** (可選，但強烈建議)
+5.  **設定本地 Hosts 檔案** (可選，但強烈建議)
     為了讓多租戶域名正常運作，請將以下內容添加到您的 `hosts` 檔案中：
     -   macOS/Linux: `/etc/hosts`
     -   Windows: `C:\Windows\System32\drivers\etc\hosts`
@@ -100,7 +64,7 @@
     127.0.0.1 tenant-b.localhost
     ```
 
-5.  **訪問應用程式！🎉**
+6.  **訪問應用程式！🎉**
     -   🌐 **主要入口**: [http://localhost:8000](http://localhost:8000)
     -   👤 **租戶 A**: [http://tenant-a.localhost:8000/login](http://tenant-a.localhost:8000/login)
     -   👤 **租戶 B**: [http://tenant-b.localhost:8000/login](http://tenant-b.localhost:8000/login)
@@ -218,9 +182,74 @@ sequenceDiagram
     L-->>B: 11. 響應返回給瀏覽器
 ```
 
+### 3. E2E 測試與頁面物件模型 (POM)
+
+為了確保應用程式的品質，本專案整合了 Playwright 進行端到端 (E2E) 測試。對於 SaaS 平台，E2E 測試不僅能驗證核心功能，更能**自動化地驗證最關鍵的多租戶資料隔離**。
+
+為了讓測試程式碼清晰、易於維護，本專案採用了業界推崇的 **頁面物件模型 (Page Object Model, POM)**，將「測試邏輯」與「頁面 UI 互動」分離。
+
+**測試案例 (`tests/e2e/specs/auth.spec.js`):**
+
+此檔案負責描述「做什麼」，專注於測試流程與斷言。
+
+```javascript
+import { test, expect } from '@playwright/test';
+import LoginPage from '../pages/LoginPage';
+import DashboardPage from '../pages/DashboardPage';
+
+test.describe('Authentication', () => {
+    let loginPage;
+    // ...
+
+    test('should allow an existing user to log in', async ({ page }) => {
+        loginPage = new LoginPage(page);
+        
+        // 1. 使用高階方法導航至登入頁
+        await loginPage.navigate();
+        
+        // 2. 執行登入操作，傳入憑證
+        await loginPage.login('tenant.a@example.com', 'password');
+
+        // 3. 斷言結果
+        const dashboardPage = new DashboardPage(page);
+        await expect(page).toHaveURL(/dashboard/);
+        await expect(dashboardPage.welcomeHeading).toBeVisible();
+    });
+});
+```
+
+**頁面物件 (`tests/e2e/pages/LoginPage.js`):**
+
+此檔案則負責「怎麼做」，封裝所有與登入頁面 UI 互動的細節。
+
+```javascript
+import BasePage from './BasePage';
+
+class LoginPage extends BasePage {
+    constructor(page) {
+        super(page);
+        // 1. 集中定義所有 UI 元素選擇器
+        this.emailInput = page.locator('input[type="email"]');
+        this.passwordInput = page.locator('input[type="password"]');
+        this.loginButton = page.locator('button[type="submit"]');
+    }
+
+    /**
+     * 2. 封裝一個完整的登入操作
+     */
+    async login(email, password) {
+        await this.emailInput.fill(email);
+        await this.passwordInput.fill(password);
+        await this.loginButton.click();
+    }
+}
+export default LoginPage;
+```
+-   **優勢**：如果未來登入頁面的設計變更（例如輸入框的 `id` 改變），我們**只需要修改 `LoginPage.js` 這一個檔案**，所有使用到登入功能的測試案例都不需變動，極大提升了測試的可維護性。
+
 ## ❓ 常見問題與設計決策 (FAQ & Design Decisions)
 
-**Q1: 這個專案適合什麼樣的使用者？**
+**Q1: 這個平台適合什麼樣的使用者？**
 > **A:** 任何需要快速搭建一個獨立、安全後台來管理自有產品和客戶訂單的中小型企業、電商賣家或獨立開發者。
 
 **Q2: 為什麼選擇 Spatie 的多租戶套件，而不是自己實現？**
@@ -238,4 +267,4 @@ sequenceDiagram
 
 ## 📜 授權 (License)
 
-此專案採用 [MIT License](LICENSE.md) 授權。
+此專案採用 [MIT License](LICENSE)。

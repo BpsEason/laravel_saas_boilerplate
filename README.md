@@ -1,16 +1,11 @@
 # Laravel Multi-Tenant SaaS Boilerplate for Order Management
 
-![Order Management SaaS Banner](https://via.placeholder.com/1200x630/2C3E50/FFFFFF?text=Modern%20SaaS%20Order%20Management%20Platform)
-
 <p align="center">
   <img src="https://img.shields.io/badge/Laravel-11.x-FF2D20.svg?style=flat-square" alt="Laravel 11.x">
   <img src="https://img.shields.io/badge/PHP-8.2-777BB4.svg?style=flat-square" alt="PHP 8.2">
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=flat-square" alt="Docker Ready">
   <img src="https://img.shields.io/badge/Playwright-E2E%20Testing-2EAD33.svg?style=flat-square" alt="Playwright E2E Testing">
   <img src="https://img.shields.io/badge/Scribe-API%20Docs-329696.svg?style=flat-square" alt="Scribe API Docs">
-  <a href="https://github.com/BpsEason/laravel_saas_boilerplate/actions/workflows/ci.yml">
-    <img src="https://github.com/BpsEason/laravel_saas_boilerplate/actions/workflows/ci.yml/badge.svg" alt="CI Status">
-  </a>
 </p>
 
 ## 🎯 專案目標：一個現代化的多租戶訂單管理平台
